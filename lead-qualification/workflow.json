@@ -133,7 +133,7 @@
         -32
       ],
       "id": "1ea761a8-42b5-4d14-87cb-f5db21eea74f",
-      "name": "AcknoledmentTo the client"
+      "name": "Acknowledgment to the client"
     },
     {
       "parameters": {
@@ -337,7 +337,7 @@
       "main": [
         [
           {
-            "node": "AcknoledmentTo the client",
+            "node": "Acknowledgment to the client",
             "type": "main",
             "index": 0
           },
