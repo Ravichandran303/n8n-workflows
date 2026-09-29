@@ -1,0 +1,388 @@
+{
+  "name": "Lead_qualification & Routing system",
+  "nodes": [
+    {
+      "parameters": {
+        "model": "deepseek-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatDeepSeek",
+      "typeVersion": 1,
+      "position": [
+        -48,
+        160
+      ],
+      "id": "10cafb0b-c7cc-49e7-96da-bcb8cb634e0e",
+      "name": "DeepSeek Chat Model"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"Category\": \"Website Project\",\n  \"Intent\": \"Interested\",\n  \"Budget\": \"₹50,000\",\n  \"Urgency\": \"High\",\n  \"UrgencyScore\": 9,\n  \"Priority\": \"Hot Lead\"\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        96,
+        160
+      ],
+      "id": "131564cb-4c8a-4a3c-a7b2-03e36a5a1953",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        256,
+        -32
+      ],
+      "id": "ad924af9-ca78-4352-835f-3790b3a78e43",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_DOCUMENTID",
+          "mode": "list",
+          "cachedResultName": "Your documentId"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "YOUR_SHEETNAME",
+          "mode": "list",
+          "cachedResultName": "Your sheetName"
+        },
+        "event": "rowAdded",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTrigger",
+      "typeVersion": 1,
+      "position": [
+        -288,
+        -16
+      ],
+      "id": "f8a89e42-711f-42fa-84ee-929df2bf55fc",
+      "name": "Form_submission"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.Inquiry }}",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=You are a lead qualification assistant. Analyze the following lead and return ONLY a valid JSON object with these exact keys: \"Category\", \"Intent\", \"Budget\", \"Urgency\", \"UrgencyScore\", \"Priority\".\n\nScoring Rules for UrgencyScore:\n- 9–10 : Extremely urgent — needs solution ASAP (within days)\n- 7–8  : High urgency — needs it within 1–2 weeks\n- 5–6  : Medium urgency — needs it within a month\n- 3–4  : Low urgency — planning for 1–3 months\n- 1–2  : Very low — just exploring, no timeline\n- 0    : No urgency mentioned\n\nPriority Rules (based on UrgencyScore):\n- UrgencyScore 8–10 → \"Hot Lead\"\n- UrgencyScore 5–7  → \"Warm Lead\"\n- UrgencyScore 0–4  → \"Cold Lead\"\n\nLead Data:\n- Name: {{ $json.Name }}\n- Email: {{ $json.email }}\n- Phone: {{ $json[\"Phone No\"] }}\n- Inquiry: {{ $json.Inquiry }}"
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        -48,
+        -16
+      ],
+      "id": "63bae16e-5782-4fb3-b4dd-970f6d63fb71",
+      "name": "CategoryDefine"
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_CHATID",
+        "text": "=🚨 *NEW LEAD RECEIVED*\n\n🏷️ Priority: *{{ $json.output.Priority }}*\n⏱️ Urgency Score: *{{ $json.output.UrgencyScore }}/10*\n\n━━━━━━━━━━━━━━━━━━━\n👤 *CONTACT INFO*\n━━━━━━━━━━━━━━━━━━━\n*Name*     : {{ $json.Name }}\n*Email*    : {{ $json.email }}\n*Phone*    : {{ $json[\"Phone No\"] }}\n*Inquiry*  : {{ $json.Inquiry }}\n\n━━━━━━━━━━━━━━━━━━━\n🧠 *AI ASSESSMENT*\n━━━━━━━━━━━━━━━━━━━\n*Category* : {{ $json.output.Category }}\n*Intent*   : {{ $json.output.Intent }}\n*Budget*   : {{ $json.output.Budget }}\n*Urgency*  : {{ $json.output.Urgency }}\n*Score*    : {{ $json.output.UrgencyScore }}/10\n*Priority* : {{ $json.output.Priority }}\n\n━━━━━━━━━━━━━━━━━━━\n⏱️ *Action:* Follow up within 24 hours.",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        624,
+        -208
+      ],
+      "id": "8764f3c9-7050-471e-998d-e93ae5734c6c",
+      "name": "Send_NewLeadToTeam"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email }}",
+        "subject": "=Subject: 🔔 New Lead —  {{ $json.output.Priority }}— {{ $json.Name }}",
+        "emailType": "text",
+        "message": "=Hi {{ $json.Name }},\n\nThank you for reaching out to us!\n\nWe've received your inquiry and our team is already reviewing it. Here's a quick confirmation of what you submitted:\n\n--------------------------------\nYour Inquiry\n--------------------------------\nName     : {{ $json.Name }}\nEmail    : {{ $json.email }}\nPhone    : {{ $json[\"Phone No\"] }}\nInquiry  : {{ $json.Inquiry }}\n--------------------------------\n\nWhat Happens Next?\nOur team will get back to you within 24 hours. If you'd like to add anything, just reply to this email.\n\nThank you for your interest — we look forward to helping you!\n\nWarm regards,\nYour Name\nYour Company",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        624,
+        -32
+      ],
+      "id": "1ea761a8-42b5-4d14-87cb-f5db21eea74f",
+      "name": "AcknoledmentTo the client"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_DOCUMENTID",
+          "mode": "list",
+          "cachedResultName": "Your documentId"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "YOUR_SHEETNAME",
+          "mode": "list",
+          "cachedResultName": "Your sheetName"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Timestamp": "={{ $json.Timestamp }}",
+            "Name": "={{ $json.Name }}",
+            "email": "={{ $json.email }}",
+            "Phone No": "={{ $json[\"Phone No\"] }}",
+            "Inquiry": "={{ $json.Inquiry }}",
+            "Category": "={{ $json.output.Category }}",
+            "Intent": "={{ $json.output.Intent }}",
+            "Budget": "={{ $json.output.Budget }}",
+            "Urgency": "={{ $json.output.Urgency }}",
+            "Priority": "={{ $json.output.Priority }}",
+            "UrgencyScore": "={{ $json.output.UrgencyScore }}"
+          },
+          "matchingColumns": [
+            "Name"
+          ],
+          "schema": [
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Phone No",
+              "displayName": "Phone No",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Inquiry",
+              "displayName": "Inquiry",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Category",
+              "displayName": "Category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Intent",
+              "displayName": "Intent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Budget",
+              "displayName": "Budget",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "UrgencyScore",
+              "displayName": "UrgencyScore",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Urgency",
+              "displayName": "Urgency",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Priority",
+              "displayName": "Priority",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        624,
+        192
+      ],
+      "id": "9c332b36-b3ad-49b7-979c-e20da167830b",
+      "name": "Add Category Details"
+    },
+    {
+      "parameters": {
+        "content": "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n🎯 AI Lead Qualification & Routing System\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n🎯 Purpose:\nCapture new form submissions, use AI to score and qualify \neach lead, then instantly notify the team and acknowledge \nthe customer.\n\n⚙️ How It Works:\n1. Google Sheets Trigger fires when a new form row is added.\n2. DeepSeek AI analyzes the inquiry and extracts:\n   Category, Intent, Budget, Urgency, UrgencyScore, Priority.\n3. Structured Output Parser forces clean JSON output.\n4. Merge combines the original form data + AI assessment.\n5. Three actions run in parallel:\n   → Gmail sends an acknowledgement to the customer.\n   → Telegram alerts the team with full lead details.\n   → Google Sheets logs the AI-scored lead for tracking.\n\n🧩 Nodes Used:\nGoogle Sheets Trigger → CategoryDefine (LLM Chain + DeepSeek \n+ Structured Output Parser) → Merge → Gmail (Ack to Client) \n+ Telegram (Team Alert) + Google Sheets (Append Scored Lead)\n\n💼 Business Value:\nReplaces manual lead triage. Leads are instantly scored, \nprioritized, and routed. Sales teams see hot leads first, \ncustomers get instant acknowledgement, and every lead is \nlogged with AI insights for follow-up.\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+        "height": 784,
+        "width": 592
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -944,
+        -288
+      ],
+      "typeVersion": 1,
+      "id": "effd58a3-2da5-49f7-a41f-87ae3fbfdc13",
+      "name": "Sticky Note"
+    }
+  ],
+  "connections": {
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "CategoryDefine",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DeepSeek Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "CategoryDefine",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "AcknoledmentTo the client",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send_NewLeadToTeam",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Add Category Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Form_submission": {
+      "main": [
+        [
+          {
+            "node": "CategoryDefine",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CategoryDefine": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
